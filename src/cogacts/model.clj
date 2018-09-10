@@ -2,30 +2,37 @@
   (:require [clojure.spec.alpha :as s]))
 
 ;;; TODO: What is an "association" in infer and count?
+;;; DONE: Do we need to specify what agent is "carrying" the aggregates?
+;;;       Yeah, an argument to attend and stuffed into a Flow.
+;;; TODO: Not sure that perception is even useful. 
 
-(defrecord Physical [object-name])
+(defrecord Physical [name])
+(defrecord Agent [name])
 
 (defrecord Sensation [physical        ;; The Physical where sensing is focused. 
-                    sense])           ;; The "sensor" used to make the sensation. 
+                      sense])         ;; The "sensor" used to make the sensation. 
 
 (defrecord Perception [sensations     ;; Sensations, indicating locus of focus (;^) on which 
                        ])
 
-(defrecord MentalObject [perceptions ;; Perceptions on which recognition occurs. 
+(defrecord MentalObject [perceptions  ;; Perceptions on which recognition occurs. 
                           ])
 
-(defrecord Flow [aggregate]) ;; The aggregate (sensations, perception, mental-object) that is flowing.
+(defrecord Flow [agent
+                 aggregate]) ;; The aggregate (sensations, perception, mental-object) that is flowing.
+
+(defrecord Concept [name uri])
 
 ;;; POD ToDo: ::perceptions
 
-(s/def ::object-name   (s/or :string string? :key keyword?))
-(s/def ::physical      (s/and (s/keys :req-un [::object-name])       #(instance? Physical      %)))
+(s/def ::name (s/or :string string? :key keyword?))
+(s/def ::physical      (s/and (s/keys :req-un [::name])              #(instance? Physical      %)))
 (s/def ::sensation     (s/and (s/keys :req-un [::physical ::sense])  #(instance? Sensation     %)))
 (s/def ::sensations    (s/or :one ::sensation :multi (s/coll-of ::sensation :kind vector?)))
 (s/def ::perception    (s/and (s/keys :req-un [::sensations])        #(instance? Perception    %)))
 (s/def ::mental-object (s/and (s/keys :req-un [::perceptions])       #(instance? MentalObject  %)))
-(s/def ::flow (s/or :sensation ::sensation :perception ::perception :mental-object ::mental-object))
-
+(s/def ::agent         (s/and (s/keys :req-un [::name])             #(instance? Agent %)))
+(s/def ::flow-agg (s/or :s ::sensation :p ::perception :mo ::mental-object))
 
 (defmacro follow-process
   "Execute the process following the form of clojure as->."
@@ -34,14 +41,14 @@
 
 (defn attend
   "Reify persistent circumstances that are producing sensation, perception or mental object."
-  [aggregate]
-  (s/assert ::flow sensation)
-  aggregate)
-
+  [agent aggregate]
+  (s/assert ::flow-agg aggregate)
+  (s/assert ::agent agent)
+  (map->Flow {:agent agent :aggregate aggregate}))
 
 ;;; TEMPORAL
-;;;  attend           -- reify persistent circumstances that are producing sensation 
-;;;  poll             -- attend at intervals 
+;;;  attend           -- <agent> <flow> bind to persistent circumstances that are producing an aggregate
+;;;  poll             -- attend at intervals  (useful?)
 ;;;  follow-process   -- perform acts in sequence 
 ;;;  discover-process -- formulate, take the form of follow-process but requires planning 
 
@@ -71,16 +78,21 @@
 
 ;;; USE MEDIUM
 ;;;  mark          -- annotate mental object to physical 
-;;;  write         -- encode mental object
+;;;  write         -- encode mental object (ADDRESSES ENCODING ALL DATA OBJECTS???)
+;;;  add-list      -- IF I ADD THIS, WHERE DOES IT STOP???
+
 (defn is-that-waldo?
   "Independent process to Attend, Perceive, Recognize."
   [thing]
-  (let [flow (attend (->Sensation :physical thing :sense :visual))]
+  (let [flow (attend "a person" (map->Sensation
+                                 {:physical (->Physical "a picture")
+                                  :sense :visual}))]
     (follow-process flow ?f
 
 (defn wheres-waldo?-1 []
-  (let [flow (attend {:focus (->Sensation :physical (->Physical :picture)
-                               :sense :visual)})]
+  (let [flow (attend "a person" (map->Sensation
+                                 {:physical (->Physical "a picture")
+                                  :sense :visual}))]
     (follow-process flow ?f
        (perceive ?f)
        (recognize ?f :figure)              

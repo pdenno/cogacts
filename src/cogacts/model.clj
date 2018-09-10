@@ -4,7 +4,6 @@
 ;;; TODO: What is an "association" in infer and count?
 ;;; DONE: Do we need to specify what agent is "carrying" the aggregates?
 ;;;       Yeah, an argument to attend and stuffed into a Flow.
-;;; TODO: Not sure that perception is even useful. 
 
 (defrecord Physical [name])
 (defrecord Agent [name])
